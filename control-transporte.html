@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Control de Transporte</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --ink:#0B3948;
+    --ink-2:#1F4E5F;
+    --ink-soft:#4A6B78;
+    --gold:#C98A2B;
+    --gold-dark:#A66F1F;
+    --gold-soft:#F3E3C4;
+    --bg:#F6F5F1;
+    --paper:#FFFFFF;
+    --line:#E4E1D8;
+    --green:#2E7D4F;
+    --green-soft:#E4F2E9;
+    --amber:#B4740E;
+    --amber-soft:#FBEFD9;
+    --red:#B3432E;
+    --red-soft:#F7E5E1;
+    --shadow: 0 1px 2px rgba(11,57,72,0.06), 0 8px 24px -12px rgba(11,57,72,0.18);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3, .display{
+    font-family:'Space Grotesk','Inter',sans-serif;
+  }
+
+  /* ---------- layout ---------- */
+  .app{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 20px 80px;
+  }
+
+  .topbar{
+    background:linear-gradient(135deg,var(--ink) 0%, var(--ink-2) 100%);
+    color:#fff;
+    padding:22px 0 0;
+    margin-bottom:28px;
+    position:relative;
+    overflow:hidden;
+  }
+  .topbar::after{
+    content:"";
+    position:absolute;
+    right:-40px; bottom:-60px;
+    width:280px; height:280px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(201,138,43,0.35), transparent 70%);
+    pointer-events:none;
+  }
+  .topbar-inner{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 20px;
+    position:relative;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .brand-mark{
+    width:38px;height:38px;
+    border-radius:9px;
+    background:var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15);
+  }
+  .brand-mark svg{width:22px;height:22px;}
+  .brand-text h1{
+    font-size:19px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .brand-text .sub{
+    font-size:12.5px;
+    color:rgba(255,255,255,0.65);
+    margin-top:1px;
+  }
+
+  .tabs{
+    display:flex;
+    gap:4px;
+    border-bottom:none;
+  }
+  .tab-btn{
+    background:transparent;
+    border:none;
+    color:rgba(255,255,255,0.62);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    font-weight:600;
+    padding:11px 18px;
+    cursor:pointer;
+    border-radius:10px 10px 0 0;
+    transition:all .15s ease;
+    position:relative;
+  }
+  .tab-btn:hover{ color:#fff; background:rgba(255,255,255,0.06); }
+  .tab-btn.active{
+    color:var(--ink);
+    background:var(--bg);
+  }
+
+  .panel{ display:none; animation:fadein .25s ease; }
+  .panel.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- cards / stats ---------- */
+  .stats-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:12px;
+    margin-bottom:22px;
+  }
+  .stat-card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .stat-card .label{
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .stat-card .value{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:24px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .stat-card .value.gold{ color:var(--gold-dark); }
+  .stat-card .value.green{ color:var(--green); }
+  .stat-card .value.amber{ color:var(--amber); }
+
+  /* ---------- card container ---------- */
+  .card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    margin-bottom:22px;
+    overflow:hidden;
+  }
+  .card-header{
+    padding:18px 22px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .card-header h2{
+    font-size:16px;
+    font-weight:700;
+    margin:0;
+    color:var(--ink);
+  }
+  .card-header .desc{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .card-body{ padding:22px; }
+
+  /* ---------- form ---------- */
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px,1fr));
+    gap:12px;
+    align-items:end;
+  }
+  .field label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:9px 11px;
+    border:1.5px solid var(--line);
+    border-radius:9px;
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    color:var(--ink);
+    background:#fff;
+    transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{
+    outline:none;
+    border-color:var(--gold);
+  }
+  .field.wide{ grid-column: span 2; }
+
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13.5px;
+    border:none;
+    border-radius:9px;
+    padding:10px 18px;
+    cursor:pointer;
+    transition:transform .1s ease, box-shadow .15s ease;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{
+    background:var(--gold);
+    color:#fff;
+  }
+  .btn-primary:hover{ background:var(--gold-dark); }
+  .btn-ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1.5px solid var(--line);
+  }
+  .btn-ghost:hover{ border-color:var(--ink-soft); color:var(--ink); }
+  .btn-danger-ghost{
+    background:transparent;
+    color:var(--red);
+    border:none;
+    padding:5px 8px;
+    font-size:12px;
+  }
+  .btn-danger-ghost:hover{ background:var(--red-soft); border-radius:6px; }
+
+  /* ---------- table ---------- */
+  .table-wrap{ overflow-x:auto; }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  thead th{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-soft);
+    font-weight:700;
+    padding:10px 12px;
+    border-bottom:2px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:11px 12px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+    color:var(--ink);
+  }
+  tbody tr:hover{ background:#FBFAF7; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  td.route{ font-weight:600; }
+  .route-line{ display:flex; align-items:center; gap:6px; }
+  .route-line .dot{ width:5px;height:5px;border-radius:50%; background:var(--gold); flex-shrink:0; }
+  .route-line .path{ width:16px; height:1px; background:var(--line); flex-shrink:0; }
+
+  .pill{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    padding:3px 10px;
+    border-radius:99px;
+  }
+  .pill-pendiente{ background:var(--amber-soft); color:var(--amber); }
+  .pill-pagado{ background:var(--green-soft); color:var(--green); }
+  .pill-parcial{ background:var(--gold-soft); color:var(--gold-dark); }
+
+  select.pill-select{
+    border:none;
+    font-size:11px;
+    font-weight:700;
+    padding:4px 8px;
+    border-radius:99px;
+    cursor:pointer;
+  }
+
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-soft);
+  }
+  .empty-state .icon{ font-size:30px; margin-bottom:10px; opacity:0.4; }
+  .empty-state .title{ font-weight:700; color:var(--ink); margin-bottom:4px; }
+  .empty-state .sub{ font-size:13px; }
+
+  .month-select{
+    display:flex; align-items:center; gap:8px;
+  }
+  .month-select select{
+    padding:8px 12px;
+    border-radius:9px;
+    border:1.5px solid var(--line);
+    font-weight:600;
+    font-size:13.5px;
+    color:var(--ink);
+    background:#fff;
+  }
+
+  .tag-no-tariff{
+    color:var(--red);
+    font-size:11px;
+    font-weight:600;
+  }
+
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    margin-top:30px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+  }
+
+  @media (max-width:640px){
+    .form-grid{ grid-template-columns:repeat(2,1fr); }
+    .field.wide{ grid-column:span 2; }
+    .card-body{ padding:16px; }
+    .card-header{ padding:14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 17h1v-5.5a1 1 0 0 1 .55-.9l5-2.5a1 1 0 0 1 .9 0l5 2.5a1 1 0 0 1 .55.9V17h1M3 17h18M3 17v2h18v-2M8 17V9m4 8V9m4 8V9" stroke="#0B3948" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="5" r="1.6" fill="#0B3948"/></svg>
+      </div>
+      <div class="brand-text">
+        <h1 id="clientName">Control de Transporte</h1>
+        <div class="sub">Gestión de viajes, tarifas y liquidaciones</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="viajes">Viajes</button>
+      <button class="tab-btn" data-tab="tarifas">Tarifas</button>
+      <button class="tab-btn" data-tab="resumen">Resumen anual</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <div id="syncBanner" style="display:none; background:var(--red-soft); color:var(--red); padding:12px 18px; border-radius:12px; margin-bottom:18px; font-size:13px; font-weight:600; align-items:center; justify-content:space-between; gap:12px;">
+    <span>No se pudo conectar con el servidor. Revisá tu conexión a internet.</span>
+    <button class="btn btn-ghost" id="retryBtn" style="padding:6px 14px; flex-shrink:0;">Reintentar</button>
+  </div>
+
+  <!-- ===================== VIAJES ===================== -->
+  <div class="panel active" id="panel-viajes">
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Cargar viaje</h2>
+          <div class="desc">El total y el pago al chofer se calculan solos según la tarifa cargada.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="tripForm" class="form-grid">
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="f-fecha" required>
+          </div>
+          <div class="field">
+            <label>Procedencia</label>
+            <input type="text" id="f-procedencia" placeholder="Ej: Landeta" required>
+          </div>
+          <div class="field">
+            <label>Destino</label>
+            <input type="text" id="f-destino" placeholder="Ej: Rosario" required>
+          </div>
+          <div class="field">
+            <label>Km recorridos</label>
+            <input type="number" id="f-km" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="field">
+            <label>Kilogramos</label>
+            <input type="number" id="f-kgrs" min="0" step="1" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>N° de CTG</label>
+            <input type="text" id="f-ctg" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>% chofer</label>
+            <input type="number" id="f-pct" min="0" max="100" step="0.5" value="10">
+          </div>
+          <div class="field">
+            <label>Estado de pago</label>
+            <select id="f-estado">
+              <option>Pendiente</option>
+              <option>Pagado</option>
+              <option>Parcial</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label>Observaciones</label>
+            <input type="text" id="f-obs" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">+ Agregar viaje</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Viajes cargados</h2>
+          <div class="desc" id="tripCountDesc">0 viajes</div>
+        </div>
+        <div class="month-select">
+          <select id="monthFilter"></select>
+          <button class="btn btn-ghost" id="refreshBtn" title="Traer los últimos datos del servidor">⟳ Actualizar</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table id="tripsTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Ruta</th>
+                <th>CTG</th>
+                <th class="num">Km</th>
+                <th class="num">Kgrs.</th>
+                <th class="num">Total $</th>
+                <th class="num">% chofer</th>
+                <th class="num">A pagar chofer</th>
+                <th>Estado</th>
+                <th>Obs.</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tripsBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="tripsEmpty" style="display:none;">
+          <div class="icon">🚛</div>
+          <div class="title">Todavía no hay viajes cargados</div>
+          <div class="sub">Completá el formulario de arriba para empezar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TARIFAS ===================== -->
+  <div class="panel" id="panel-tarifas">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Tarifa por kilómetro</h2>
+          <div class="desc">Es el único número que hace falta: el costo de cada viaje se calcula como Km recorridos × esta tarifa.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="label" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600;margin-bottom:8px;">Tarifa vigente</div>
+        <div class="display" id="tarifaActualDisplay" style="font-size:38px;font-weight:700;color:var(--gold-dark); margin-bottom:22px;">$0 / km</div>
+
+        <form id="tariffForm" class="form-grid" style="max-width:320px;">
+          <div class="field">
+            <label>Nueva tarifa ($ por km)</label>
+            <input type="number" id="t-precio" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Guardar tarifa</button>
+          </div>
+        </form>
+        <div class="desc" style="margin-top:16px;">Los viajes que ya cargaste no cambian: guardan el precio que estaba vigente en el momento en que se agregaron.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESUMEN ===================== -->
+  <div class="panel" id="panel-resumen">
+    <div class="stats-row" id="resumenStatsRow"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Detalle de viajes</h2>
+          <div class="desc" id="resumenCountDesc">0 viajes en total</div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Ruta</th>
+                <th class="num">Km</th>
+                <th class="num">Total $</th>
+                <th class="num">A pagar chofer</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="resumenBody"></tbody>
+          </table>
+        </div>
+        <div class="desc" style="padding:14px 22px;">Por ahora se ve todo junto, ordenado por fecha. Más adelante sumamos filtro por mes acá también.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Los datos se guardan en la nube — vos y el chofer ven la misma información.</footer>
+</div>
+
+<script>
+(function(){
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  let trips = [];
+  let tarifaActual = 0;
+  let currentTab = 'viajes';
+  let monthFilter = 'todos';
+
+  const money = n => '$' + Math.round(n||0).toLocaleString('es-AR');
+  const kg = n => Math.round(n||0).toLocaleString('es-AR');
+
+  // ---------------- conexión al backend (Google Sheets vía Apps Script) ----------------
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyH1jNrvYxe5FWiiLhlu6-h8BHqx0EwYgB1o9eTuiRJOglPbQt0K0AefGJZrV9OuhmRlA/exec';
+  const API_TOKEN = 'leonardi-2026';
+
+  function normalizeTrip(raw){
+    // La fecha puede volver de Sheets como texto plano o como datetime ISO
+    // (si Sheets la detectó como fecha); nos quedamos con la parte YYYY-MM-DD.
+    let fecha = raw.fecha || '';
+    if (typeof fecha === 'string' && fecha.includes('T')) fecha = fecha.slice(0,10);
+    return {
+      id: String(raw.id),
+      fecha,
+      procedencia: raw.procedencia || '',
+      destino: raw.destino || '',
+      km: parseFloat(raw.km) || 0,
+      kgrs: raw.kgrs,
+      ctg: raw.ctg || '',
+      pct: parseFloat(raw.pct) || 0,
+      estado: raw.estado || 'Pendiente',
+      obs: raw.obs || '',
+      total: parseFloat(raw.total) || 0,
+      tarifaUsada: parseFloat(raw.tarifaUsada) || 0
+    };
+  }
+
+  function showSyncError(show){
+    document.getElementById('syncBanner').style.display = show ? 'flex' : 'none';
+  }
+
+  async function loadData(){
+    try{
+      const res = await fetch(API_URL);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      trips = (data.trips || []).map(normalizeTrip);
+      tarifaActual = parseFloat(data.tarifa) || 0;
+      showSyncError(false);
+    }catch(e){
+      console.error('No se pudo conectar con el backend', e);
+      showSyncError(true);
+    }
+    render();
+  }
+
+  // Todas las escrituras van directo al Sheet vía POST; después de cada una
+  // volvemos a pedir los datos (loadData) para que todos vean lo mismo.
+  async function apiPost(action, extra){
+    try{
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ action, token: API_TOKEN }, extra))
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || 'Error desconocido');
+      showSyncError(false);
+      return true;
+    }catch(e){
+      console.error('Error al guardar en el backend', e);
+      showSyncError(true);
+      alert('No se pudo guardar en el servidor. Revisá tu conexión e intentá de nuevo.');
+      return false;
+    }
+  }
+
+  document.getElementById('retryBtn').addEventListener('click', loadData);
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+  // ---------------- helper: total de un viaje ----------------
+  // El total se congela al crear el viaje (trip.total), usando la tarifa
+  // vigente en ese momento — así, si la tarifa cambia después, los viajes
+  // ya cargados no se recalculan solos.
+  function totalDe(trip){
+    return (typeof trip.total === 'number' && !isNaN(trip.total) && trip.total !== 0)
+      ? trip.total
+      : (parseFloat(trip.km)||0) * tarifaActual;
+  }
+
+  // ---------------- tabs ----------------
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      currentTab = btn.dataset.tab;
+      document.getElementById('panel-'+currentTab).classList.add('active');
+      render();
+    });
+  });
+
+  // ---------------- trip form ----------------
+  document.getElementById('tripForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const km = parseFloat(document.getElementById('f-km').value) || 0;
+    const trip = {
+      id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+      fecha: document.getElementById('f-fecha').value || new Date().toISOString().slice(0,10),
+      procedencia: document.getElementById('f-procedencia').value.trim(),
+      destino: document.getElementById('f-destino').value.trim(),
+      km: km,
+      kgrs: document.getElementById('f-kgrs').value,
+      ctg: document.getElementById('f-ctg').value.trim(),
+      pct: document.getElementById('f-pct').value || 0,
+      estado: document.getElementById('f-estado').value,
+      obs: document.getElementById('f-obs').value.trim(),
+      total: km * tarifaActual,
+      tarifaUsada: tarifaActual
+    };
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ok = await apiPost('addTrip', { trip });
+    btn.disabled = false; btn.textContent = '+ Agregar viaje';
+    if(ok){
+      e.target.reset();
+      document.getElementById('f-pct').value = 10;
+      await loadData();
+    }
+  });
+
+  async function deleteTrip(id){
+    if(!confirm('¿Borrar este viaje?')) return;
+    const ok = await apiPost('deleteTrip', { id });
+    if(ok) await loadData();
+  }
+  async function setEstado(id, estado){
+    const ok = await apiPost('setEstado', { id, estado });
+    if(ok) await loadData();
+    else render();
+  }
+  window.__deleteTrip = deleteTrip;
+  window.__setEstado = setEstado;
+
+  // ---------------- tariff form ----------------
+  document.getElementById('tariffForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const value = parseFloat(document.getElementById('t-precio').value) || 0;
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ok = await apiPost('setTarifa', { value });
+    btn.disabled = false; btn.textContent = 'Guardar tarifa';
+    if(ok){
+      e.target.reset();
+      await loadData();
+    }
+  });
+
+  // ---------------- month filter ----------------
+  document.getElementById('monthFilter').addEventListener('change', e=>{
+    monthFilter = e.target.value;
+    render();
+  });
+
+  function buildMonthFilterOptions(){
+    const sel = document.getElementById('monthFilter');
+    const monthsPresent = new Set(trips.map(t=> (t.fecha||'').slice(0,7)).filter(Boolean));
+    const now = new Date();
+    monthsPresent.add(now.toISOString().slice(0,7));
+    const sorted = Array.from(monthsPresent).sort().reverse();
+    const prevValue = sel.value || monthFilter;
+    sel.innerHTML = '<option value="todos">Todos los meses</option>' +
+      sorted.map(ym=>{
+        const [y,m] = ym.split('-');
+        const label = MESES[parseInt(m,10)-1] + ' ' + y;
+        return `<option value="${ym}">${label}</option>`;
+      }).join('');
+    if([...sel.options].some(o=>o.value===prevValue)) sel.value = prevValue;
+  }
+
+  // ---------------- render ----------------
+  function render(){
+    if(currentTab==='viajes'){ renderStats(); buildMonthFilterOptions(); renderTrips(); }
+    if(currentTab==='tarifas'){ renderTarifaActual(); }
+    if(currentTab==='resumen'){ renderResumen(); }
+  }
+
+  function filteredTrips(){
+    if(monthFilter==='todos') return trips;
+    return trips.filter(t=> (t.fecha||'').slice(0,7)===monthFilter);
+  }
+
+  function renderStats(){
+    const list = filteredTrips();
+    let totalKg=0, totalKm=0, totalFact=0, totalChofer=0, pendiente=0;
+    list.forEach(t=>{
+      const total = totalDe(t);
+      const monto = total * (parseFloat(t.pct)||0)/100;
+      totalKg += parseFloat(t.kgrs)||0;
+      totalKm += parseFloat(t.km)||0;
+      totalFact += total;
+      totalChofer += monto;
+      if(t.estado==='Pendiente') pendiente += monto;
+    });
+    const stats = [
+      {label:'Viajes', value: list.length, cls:''},
+      {label:'Km recorridos', value: kg(totalKm), cls:''},
+      {label:'Facturación', value: money(totalFact), cls:'gold'},
+      {label:'A pagar chofer', value: money(totalChofer), cls:'amber'},
+      {label:'Pendiente de pago', value: money(pendiente), cls:'amber'},
+    ];
+    document.getElementById('statsRow').innerHTML = stats.map(s=>`
+      <div class="stat-card">
+        <div class="label">${s.label}</div>
+        <div class="value ${s.cls}">${s.value}</div>
+      </div>`).join('');
+  }
+
+  function renderTrips(){
+    const list = filteredTrips().slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+    const body = document.getElementById('tripsBody');
+    document.getElementById('tripCountDesc').textContent = list.length + (list.length===1?' viaje':' viajes');
+
+    if(list.length===0){
+      body.innerHTML='';
+      document.getElementById('tripsEmpty').style.display='block';
+      document.getElementById('tripsTable').style.display='none';
+      return;
+    }
+    document.getElementById('tripsEmpty').style.display='none';
+    document.getElementById('tripsTable').style.display='table';
+
+    body.innerHTML = list.map(t=>{
+      const totalVal = totalDe(t);
+      const sinTarifa = !totalVal && !t.km;
+      const monto = totalVal * (parseFloat(t.pct)||0)/100;
+      const pillClass = t.estado==='Pagado' ? 'pill-pagado' : (t.estado==='Parcial' ? 'pill-parcial' : 'pill-pendiente');
+      const fechaFmt = t.fecha ? new Date(t.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
+      return `<tr>
+        <td>${fechaFmt}</td>
+        <td class="route">
+          <div class="route-line">
+            <span>${t.procedencia||'—'}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
+            <span>${t.destino||'—'}</span>
+          </div>
+        </td>
+        <td>${t.ctg||'—'}</td>
+        <td class="num">${kg(t.km)}</td>
+        <td class="num">${t.kgrs?kg(t.kgrs):'—'}</td>
+        <td class="num">${money(totalVal)}</td>
+        <td class="num">${t.pct||0}%</td>
+        <td class="num">${money(monto)}</td>
+        <td>
+          <select class="pill-select ${pillClass}" onchange="window.__setEstado('${t.id}', this.value)">
+            <option ${t.estado==='Pendiente'?'selected':''}>Pendiente</option>
+            <option ${t.estado==='Pagado'?'selected':''}>Pagado</option>
+            <option ${t.estado==='Parcial'?'selected':''}>Parcial</option>
+          </select>
+        </td>
+        <td style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">${t.obs||''}</td>
+        <td><button class="btn-danger-ghost" onclick="window.__deleteTrip('${t.id}')">Borrar</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTarifaActual(){
+    document.getElementById('tarifaActualDisplay').textContent = money(tarifaActual) + ' / km';
+  }
+
+  function renderResumen(){
+    const list = trips.slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+    document.getElementById('resumenCountDesc').textContent = list.length + (list.length===1?' viaje en total':' viajes en total');
+
+    let totalKm=0, totalFact=0, totalChofer=0, pagado=0, pendiente=0;
+    list.forEach(t=>{
+      const total = totalDe(t);
+      const monto = total*(parseFloat(t.pct)||0)/100;
+      totalKm += parseFloat(t.km)||0;
+      totalFact += total;
+      totalChofer += monto;
+      if(t.estado==='Pagado') pagado += monto;
+      else if(t.estado==='Pendiente') pendiente += monto;
+    });
+    document.getElementById('resumenStatsRow').innerHTML = [
+      {label:'Viajes totales', value: list.length, cls:''},
+      {label:'Km totales', value: kg(totalKm), cls:''},
+      {label:'Facturación total', value: money(totalFact), cls:'gold'},
+      {label:'Pagado al chofer', value: money(pagado), cls:'green'},
+      {label:'Pendiente', value: money(pendiente), cls:'amber'},
+    ].map(s=>`
+      <div class="stat-card">
+        <div class="label">${s.label}</div>
+        <div class="value ${s.cls}">${s.value}</div>
+      </div>`).join('');
+
+    document.getElementById('resumenBody').innerHTML = list.map(t=>{
+      const total = totalDe(t);
+      const monto = total*(parseFloat(t.pct)||0)/100;
+      const pillClass = t.estado==='Pagado' ? 'pill-pagado' : (t.estado==='Parcial' ? 'pill-parcial' : 'pill-pendiente');
+      const fechaFmt = t.fecha ? new Date(t.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
+      return `<tr>
+        <td>${fechaFmt}</td>
+        <td class="route">
+          <div class="route-line">
+            <span>${t.procedencia||'—'}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
+            <span>${t.destino||'—'}</span>
+          </div>
+        </td>
+        <td class="num">${kg(t.km)}</td>
+        <td class="num">${money(total)}</td>
+        <td class="num">${money(monto)}</td>
+        <td><span class="pill ${pillClass}">${t.estado||'Pendiente'}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  loadData();
+})();
+</script>
+</body>
+</html>
