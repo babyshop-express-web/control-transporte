@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Control de Transporte</title>
+<title>Control Transporte Leonardi</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -364,7 +364,7 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M3 17h1v-5.5a1 1 0 0 1 .55-.9l5-2.5a1 1 0 0 1 .9 0l5 2.5a1 1 0 0 1 .55.9V17h1M3 17h18M3 17v2h18v-2M8 17V9m4 8V9m4 8V9" stroke="#0B3948" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="5" r="1.6" fill="#0B3948"/></svg>
       </div>
       <div class="brand-text">
-        <h1 id="clientName">Control de Transporte</h1>
+        <h1 id="clientName">Control Transporte Leonardi</h1>
         <div class="sub">Gestión de viajes, tarifas y liquidaciones</div>
       </div>
     </div>
@@ -372,6 +372,7 @@
       <button class="tab-btn active" data-tab="viajes">Viajes</button>
       <button class="tab-btn" data-tab="choferes">Choferes</button>
       <button class="tab-btn" data-tab="camion">Camión</button>
+      <button class="tab-btn" data-tab="gastos">Gastos</button>
       <button class="tab-btn" data-tab="resumen">Resumen anual</button>
     </div>
   </div>
@@ -709,6 +710,84 @@
     </div>
   </div>
 
+  <!-- ===================== GASTOS ===================== -->
+  <div class="panel" id="panel-gastos">
+    <div class="stats-row" id="gastosStatsRow"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Cargar gasto</h2>
+          <div class="desc">Combustible, peajes, seguros, sueldos, patente, cualquier costo del transporte.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="gastoForm" class="form-grid">
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="g-fecha" required>
+          </div>
+          <div class="field">
+            <label>Categoría</label>
+            <select id="g-categoria">
+              <option>Combustible</option>
+              <option>Peajes</option>
+              <option>Mantenimiento</option>
+              <option>Seguro</option>
+              <option>Patente/Impuestos</option>
+              <option>Sueldos</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Monto ($)</label>
+            <input type="number" id="g-monto" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="field wide">
+            <label>Descripción</label>
+            <input type="text" id="g-detalle" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">+ Agregar gasto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Gastos cargados</h2>
+          <div class="desc" id="gastosCountDesc">0 gastos</div>
+        </div>
+        <div class="month-select">
+          <select id="gastoMonthFilter"></select>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Categoría</th>
+                <th class="num">Monto</th>
+                <th>Descripción</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="gastosBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="gastosEmpty" style="display:none;">
+          <div class="icon">💸</div>
+          <div class="title">Todavía no hay gastos cargados</div>
+          <div class="sub">Completá el formulario de arriba para empezar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== RESUMEN ===================== -->
   <div class="panel" id="panel-resumen">
     <div class="stats-row" id="resumenStatsRow"></div>
@@ -752,9 +831,11 @@
   let choferes = [];
   let camion = {};
   let mantenimientos = [];
+  let gastos = [];
+  let gastoMonthFilter = 'todos';
   let editingChoferId = null;
   let currentTab = 'viajes';
-  let monthFilter = 'todos';
+  let monthFilter = new Date().toISOString().slice(0,7); // arranca mostrando el mes actual
 
   function diasHasta(dateStr){
     if(!dateStr) return null;
@@ -849,6 +930,16 @@
     };
   }
 
+  function normalizeGasto(raw){
+    return {
+      id: String(raw.id),
+      fecha: raw.fecha ? String(raw.fecha).slice(0,10) : '',
+      categoria: raw.categoria || 'Otro',
+      monto: parseFloat(raw.monto) || 0,
+      detalle: raw.detalle || ''
+    };
+  }
+
   function showSyncError(show){
     document.getElementById('syncBanner').style.display = show ? 'flex' : 'none';
   }
@@ -861,6 +952,7 @@
       choferes = (data.choferes || []).map(normalizeChofer);
       camion = data.camion || {};
       mantenimientos = (data.mantenimientos || []).map(normalizeMant);
+      gastos = (data.gastos || []).map(normalizeGasto);
       showSyncError(false);
     }catch(e){
       console.error('No se pudo conectar con el backend', e);
@@ -1091,19 +1183,48 @@
   }
   window.__deleteMant = deleteMant;
 
+  // ---------------- gastos ----------------
+  document.getElementById('gastoForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const gasto = {
+      id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+      fecha: document.getElementById('g-fecha').value,
+      categoria: document.getElementById('g-categoria').value,
+      monto: document.getElementById('g-monto').value || 0,
+      detalle: document.getElementById('g-detalle').value.trim()
+    };
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ok = await apiPost('addGasto', { gasto });
+    btn.disabled = false; btn.textContent = '+ Agregar gasto';
+    if(ok){ e.target.reset(); await loadData(); }
+  });
+
+  async function deleteGasto(id){
+    if(!confirm('¿Borrar este gasto?')) return;
+    const ok = await apiPost('deleteGasto', { id });
+    if(ok) await loadData();
+  }
+  window.__deleteGasto = deleteGasto;
+
+  document.getElementById('gastoMonthFilter').addEventListener('change', e=>{
+    gastoMonthFilter = e.target.value;
+    renderGastos();
+  });
+
   // ---------------- month filter ----------------
   document.getElementById('monthFilter').addEventListener('change', e=>{
     monthFilter = e.target.value;
     render();
   });
 
-  function buildMonthFilterOptions(){
-    const sel = document.getElementById('monthFilter');
-    const monthsPresent = new Set(trips.map(t=> (t.fecha||'').slice(0,7)).filter(Boolean));
+  function buildMonthFilterOptions(selectId, items, currentValue){
+    const sel = document.getElementById(selectId);
+    const monthsPresent = new Set(items.map(t=> (t.fecha||'').slice(0,7)).filter(Boolean));
     const now = new Date();
     monthsPresent.add(now.toISOString().slice(0,7));
     const sorted = Array.from(monthsPresent).sort().reverse();
-    const prevValue = sel.value || monthFilter;
+    const prevValue = sel.value || currentValue;
     sel.innerHTML = '<option value="todos">Todos los meses</option>' +
       sorted.map(ym=>{
         const [y,m] = ym.split('-');
@@ -1118,9 +1239,10 @@
     renderChoferDropdown();
     renderClientesDatalist();
     renderAlerts();
-    if(currentTab==='viajes'){ renderStats(); buildMonthFilterOptions(); renderTrips(); }
+    if(currentTab==='viajes'){ renderStats(); buildMonthFilterOptions('monthFilter', trips, monthFilter); renderTrips(); }
     if(currentTab==='choferes'){ renderChoferes(); }
     if(currentTab==='camion'){ renderCamion(); }
+    if(currentTab==='gastos'){ buildMonthFilterOptions('gastoMonthFilter', gastos, gastoMonthFilter); renderGastos(); }
     if(currentTab==='resumen'){ renderResumen(); }
   }
 
@@ -1263,12 +1385,15 @@
       if(t.estado==='Pagado') pagado += monto;
       else if(t.estado==='Pendiente') pendiente += monto;
     });
+    const totalGastos = gastos.reduce((acc,g)=>acc+(g.monto||0), 0);
+    const balance = totalFact - totalChofer - totalGastos;
     document.getElementById('resumenStatsRow').innerHTML = [
       {label:'Viajes totales', value: list.length, cls:''},
       {label:'Km totales', value: kg(totalKm), cls:''},
       {label:'Facturación total', value: money(totalFact), cls:'gold'},
-      {label:'Pagado al chofer', value: money(pagado), cls:'green'},
-      {label:'Pendiente', value: money(pendiente), cls:'amber'},
+      {label:'Pagado/a pagar chofer', value: money(totalChofer), cls:'amber'},
+      {label:'Gastos totales', value: money(totalGastos), cls:'amber'},
+      {label:'Balance (facturación − chofer − gastos)', value: money(balance), cls: balance>=0?'green':'amber'},
     ].map(s=>`
       <div class="stat-card">
         <div class="label">${s.label}</div>
@@ -1366,6 +1491,46 @@
           <td><button class="btn-danger-ghost" onclick="window.__deleteMant('${m.id}')">Borrar</button></td>
         </tr>`;
       }).join('');
+  }
+
+  // ---------------- gastos ----------------
+  function renderGastos(){
+    const list = gastoMonthFilter==='todos' ? gastos : gastos.filter(g=> (g.fecha||'').slice(0,7)===gastoMonthFilter);
+    const sorted = list.slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+
+    const totalMes = list.reduce((acc,g)=>acc+(g.monto||0), 0);
+    const porCategoria = {};
+    list.forEach(g=>{ porCategoria[g.categoria] = (porCategoria[g.categoria]||0) + (g.monto||0); });
+    const categoriaTop = Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a])[0];
+
+    document.getElementById('gastosStatsRow').innerHTML = [
+      { label:'Gastos (' + (gastoMonthFilter==='todos'?'todo':'este período') + ')', value: money(totalMes), cls:'amber' },
+      { label:'Cantidad de gastos', value: list.length, cls:'' },
+      { label:'Categoría con más gasto', value: categoriaTop || '—', cls:'' },
+    ].map(s=>`
+      <div class="stat-card">
+        <div class="label">${s.label}</div>
+        <div class="value ${s.cls}">${s.value}</div>
+      </div>`).join('');
+
+    document.getElementById('gastosCountDesc').textContent = sorted.length + (sorted.length===1?' gasto':' gastos');
+    const body = document.getElementById('gastosBody');
+    if(sorted.length===0){
+      body.innerHTML = '';
+      document.getElementById('gastosEmpty').style.display = 'block';
+      return;
+    }
+    document.getElementById('gastosEmpty').style.display = 'none';
+    body.innerHTML = sorted.map(g=>{
+      const fechaFmt = g.fecha ? new Date(g.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
+      return `<tr>
+        <td>${fechaFmt}</td>
+        <td>${g.categoria}</td>
+        <td class="num">${money(g.monto)}</td>
+        <td>${g.detalle||''}</td>
+        <td><button class="btn-danger-ghost" onclick="window.__deleteGasto('${g.id}')">Borrar</button></td>
+      </tr>`;
+    }).join('');
   }
 
   loadData();
