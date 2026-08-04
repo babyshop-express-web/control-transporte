@@ -296,6 +296,10 @@
   .pill-pendiente{ background:var(--amber-soft); color:var(--amber); }
   .pill-pagado{ background:var(--green-soft); color:var(--green); }
   .pill-parcial{ background:var(--gold-soft); color:var(--gold-dark); }
+  .pill-vencido{ background:var(--red-soft); color:var(--red); }
+  .pill-porvencer{ background:var(--amber-soft); color:var(--amber); }
+  .pill-ok{ background:var(--green-soft); color:var(--green); }
+  .pill-sindato{ background:#EEEEEE; color:var(--ink-soft); }
 
   select.pill-select{
     border:none;
@@ -366,7 +370,8 @@
     </div>
     <div class="tabs">
       <button class="tab-btn active" data-tab="viajes">Viajes</button>
-      <button class="tab-btn" data-tab="tarifas">Tarifas</button>
+      <button class="tab-btn" data-tab="choferes">Choferes</button>
+      <button class="tab-btn" data-tab="camion">Camión</button>
       <button class="tab-btn" data-tab="resumen">Resumen anual</button>
     </div>
   </div>
@@ -379,6 +384,8 @@
     <button class="btn btn-ghost" id="retryBtn" style="padding:6px 14px; flex-shrink:0;">Reintentar</button>
   </div>
 
+  <div id="alertsBanner" style="display:none; margin-bottom:18px;"></div>
+
   <!-- ===================== VIAJES ===================== -->
   <div class="panel active" id="panel-viajes">
 
@@ -388,7 +395,7 @@
       <div class="card-header">
         <div>
           <h2>Cargar viaje</h2>
-          <div class="desc">El total y el pago al chofer se calculan solos según la tarifa cargada.</div>
+          <div class="desc">El pago al chofer se calcula solo, con el % que tenga cargado en la pestaña Choferes.</div>
         </div>
       </div>
       <div class="card-body">
@@ -399,27 +406,45 @@
           </div>
           <div class="field">
             <label>Procedencia</label>
-            <input type="text" id="f-procedencia" placeholder="Ej: Landeta" required>
+            <input type="text" id="f-procedencia-nombre" placeholder="Ej: Campo 1" required>
+          </div>
+          <div class="field">
+            <label>Localidad</label>
+            <input type="text" id="f-procedencia-localidad" placeholder="Ej: Landeta" required>
           </div>
           <div class="field">
             <label>Destino</label>
-            <input type="text" id="f-destino" placeholder="Ej: Rosario" required>
+            <input type="text" id="f-destino-nombre" placeholder="Ej: Puerto Rosario" required>
           </div>
           <div class="field">
-            <label>Km recorridos</label>
-            <input type="number" id="f-km" min="0" step="1" placeholder="0" required>
+            <label>Localidad</label>
+            <input type="text" id="f-destino-localidad" placeholder="Ej: Rosario" required>
           </div>
           <div class="field">
-            <label>Kilogramos</label>
-            <input type="number" id="f-kgrs" min="0" step="1" placeholder="Opcional">
+            <label>Chofer</label>
+            <select id="f-chofer">
+              <option value="">Sin asignar</option>
+            </select>
           </div>
           <div class="field">
             <label>N° de CTG</label>
             <input type="text" id="f-ctg" placeholder="Opcional">
           </div>
           <div class="field">
-            <label>% chofer</label>
-            <input type="number" id="f-pct" min="0" max="100" step="0.5" value="10">
+            <label>Kilogramos</label>
+            <input type="number" id="f-kgrs" min="0" step="1" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>Km recorridos</label>
+            <input type="number" id="f-km" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="field">
+            <label>Cliente (quién contrata)</label>
+            <input type="text" id="f-cliente" list="dl-clientes" placeholder="Ej: Acopio Landeta">
+          </div>
+          <div class="field">
+            <label>Pago ($)</label>
+            <input type="number" id="f-pago" min="0" step="1" placeholder="0" required>
           </div>
           <div class="field">
             <label>Estado de pago</label>
@@ -437,6 +462,7 @@
             <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">+ Agregar viaje</button>
           </div>
         </form>
+        <datalist id="dl-clientes"></datalist>
       </div>
     </div>
 
@@ -458,11 +484,12 @@
               <tr>
                 <th>Fecha</th>
                 <th>Ruta</th>
+                <th>Cliente</th>
                 <th>CTG</th>
+                <th>Chofer</th>
                 <th class="num">Km</th>
                 <th class="num">Kgrs.</th>
-                <th class="num">Total $</th>
-                <th class="num">% chofer</th>
+                <th class="num">Pago</th>
                 <th class="num">A pagar chofer</th>
                 <th>Estado</th>
                 <th>Obs.</th>
@@ -481,29 +508,203 @@
     </div>
   </div>
 
-  <!-- ===================== TARIFAS ===================== -->
-  <div class="panel" id="panel-tarifas">
+  <!-- ===================== CHOFERES ===================== -->
+  <div class="panel" id="panel-choferes">
     <div class="card">
       <div class="card-header">
         <div>
-          <h2>Tarifa por kilómetro</h2>
-          <div class="desc">Es el único número que hace falta: el costo de cada viaje se calcula como Km recorridos × esta tarifa.</div>
+          <h2 id="choferFormTitle">Agregar chofer</h2>
+          <div class="desc">Se van a poder elegir desde un desplegable al cargar cada viaje.</div>
         </div>
       </div>
       <div class="card-body">
-        <div class="label" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600;margin-bottom:8px;">Tarifa vigente</div>
-        <div class="display" id="tarifaActualDisplay" style="font-size:38px;font-weight:700;color:var(--gold-dark); margin-bottom:22px;">$0 / km</div>
-
-        <form id="tariffForm" class="form-grid" style="max-width:320px;">
+        <form id="choferForm" class="form-grid">
           <div class="field">
-            <label>Nueva tarifa ($ por km)</label>
-            <input type="number" id="t-precio" min="0" step="1" placeholder="0" required>
+            <label>Nombre</label>
+            <input type="text" id="c-nombre" placeholder="Ej: Matías Leonardi" required>
           </div>
           <div class="field">
-            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Guardar tarifa</button>
+            <label>DNI</label>
+            <input type="text" id="c-dni" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>Teléfono</label>
+            <input type="text" id="c-telefono" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>N° de licencia</label>
+            <input type="text" id="c-licencia-numero" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>Categoría</label>
+            <input type="text" id="c-licencia-categoria" placeholder="Ej: D2">
+          </div>
+          <div class="field">
+            <label>Vencimiento de licencia</label>
+            <input type="date" id="c-licencia-vencimiento">
+          </div>
+          <div class="field wide" style="display:flex; align-items:center; gap:8px; padding-top:22px;">
+            <input type="checkbox" id="c-es-dueno" style="width:16px; height:16px; accent-color:var(--gold);">
+            <label for="c-es-dueno" style="margin:0; text-transform:none; font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer;">
+              Es el dueño del camión (maneja él mismo, no cobra % de flete)
+            </label>
+          </div>
+          <div class="field" id="c-pct-wrap">
+            <label>% habitual</label>
+            <input type="number" id="c-pct" min="0" max="100" step="0.5" value="10">
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" id="choferSubmitBtn" style="width:100%; justify-content:center;">+ Agregar chofer</button>
+          </div>
+          <div class="field" id="choferCancelWrap" style="display:none;">
+            <button type="button" class="btn btn-ghost" id="choferCancelBtn" style="width:100%; justify-content:center;">Cancelar edición</button>
           </div>
         </form>
-        <div class="desc" style="margin-top:16px;">Los viajes que ya cargaste no cambian: guardan el precio que estaba vigente en el momento en que se agregaron.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Choferes cargados</h2>
+          <div class="desc" id="choferesCountDesc">0 choferes</div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Teléfono</th>
+                <th>Licencia</th>
+                <th>Vencimiento</th>
+                <th class="num">% habitual</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="choferesBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="choferesEmpty" style="display:none;">
+          <div class="icon">🧑‍✈️</div>
+          <div class="title">Todavía no cargaste choferes</div>
+          <div class="sub">Completá el formulario de arriba para empezar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CAMIÓN ===================== -->
+  <div class="panel" id="panel-camion">
+    <div class="stats-row" id="camionStatsRow"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Datos del camión</h2>
+          <div class="desc">Patente, VTV y datos generales.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="camionForm" class="form-grid">
+          <div class="field">
+            <label>Patente</label>
+            <input type="text" id="cam-patente" placeholder="Ej: AB123CD">
+          </div>
+          <div class="field">
+            <label>Marca</label>
+            <input type="text" id="cam-marca" placeholder="Ej: Scania">
+          </div>
+          <div class="field">
+            <label>Modelo</label>
+            <input type="text" id="cam-modelo" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <label>Año</label>
+            <input type="number" id="cam-anio" placeholder="Ej: 2018">
+          </div>
+          <div class="field">
+            <label>Última VTV</label>
+            <input type="date" id="cam-vtv-ultima">
+          </div>
+          <div class="field">
+            <label>Vencimiento VTV</label>
+            <input type="date" id="cam-vtv-vencimiento">
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Guardar datos del camión</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Cargar mantenimiento</h2>
+          <div class="desc">Services, cambio de neumáticos, aceite, frenos, etc.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="mantForm" class="form-grid">
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="m-fecha" required>
+          </div>
+          <div class="field">
+            <label>Km del camión</label>
+            <input type="number" id="m-km" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="m-tipo">
+              <option>Service</option>
+              <option>Neumáticos</option>
+              <option>Aceite</option>
+              <option>Frenos</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label>Detalle</label>
+            <input type="text" id="m-detalle" placeholder="Ej: Cambio de las 6 cubiertas traseras">
+          </div>
+          <div class="field">
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">+ Agregar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Historial de mantenimientos</h2>
+          <div class="desc" id="mantCountDesc">0 registros</div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th class="num">Km</th>
+                <th>Tipo</th>
+                <th>Detalle</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="mantBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="mantEmpty" style="display:none;">
+          <div class="icon">🔧</div>
+          <div class="title">Todavía no hay mantenimientos cargados</div>
+          <div class="sub">Completá el formulario de arriba para empezar.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -526,8 +727,9 @@
               <tr>
                 <th>Fecha</th>
                 <th>Ruta</th>
+                <th>Cliente</th>
                 <th class="num">Km</th>
-                <th class="num">Total $</th>
+                <th class="num">Pago</th>
                 <th class="num">A pagar chofer</th>
                 <th>Estado</th>
               </tr>
@@ -547,12 +749,31 @@
 (function(){
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   let trips = [];
-  let tarifaActual = 0;
+  let choferes = [];
+  let camion = {};
+  let mantenimientos = [];
+  let editingChoferId = null;
   let currentTab = 'viajes';
   let monthFilter = 'todos';
 
+  function diasHasta(dateStr){
+    if(!dateStr) return null;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const d = new Date(dateStr+'T00:00:00');
+    if(isNaN(d.getTime())) return null;
+    return Math.round((d-hoy)/(1000*60*60*24));
+  }
+  function estadoVencimiento(dateStr){
+    const dias = diasHasta(dateStr);
+    if(dias===null) return { texto:'Sin dato', cls:'pill-sindato' };
+    if(dias<0) return { texto:'Vencido', cls:'pill-vencido' };
+    if(dias<=30) return { texto:'Vence en '+dias+'d', cls:'pill-porvencer' };
+    return { texto: new Date(dateStr+'T00:00:00').toLocaleDateString('es-AR'), cls:'pill-ok' };
+  }
+
   const money = n => '$' + Math.round(n||0).toLocaleString('es-AR');
   const kg = n => Math.round(n||0).toLocaleString('es-AR');
+  const routeLabel = (nombre, localidad) => (nombre||'—') + (localidad ? ' ('+localidad+')' : '');
 
   // ---------------- conexión al backend (Google Sheets vía Apps Script) ----------------
   // Nota técnica: Apps Script no manda las cabeceras CORS que necesita fetch().
@@ -588,16 +809,43 @@
     return {
       id: String(raw.id),
       fecha,
-      procedencia: raw.procedencia || '',
-      destino: raw.destino || '',
+      procedenciaNombre: raw.procedenciaNombre || raw.procedencia || '',
+      procedenciaLocalidad: raw.procedenciaLocalidad || '',
+      destinoNombre: raw.destinoNombre || raw.destino || '',
+      destinoLocalidad: raw.destinoLocalidad || '',
       km: parseFloat(raw.km) || 0,
       kgrs: raw.kgrs,
       ctg: raw.ctg || '',
-      pct: parseFloat(raw.pct) || 0,
+      cliente: raw.cliente || '',
+      choferId: raw.choferId ? String(raw.choferId) : '',
+      choferNombre: raw.choferNombre || '',
       estado: raw.estado || 'Pendiente',
       obs: raw.obs || '',
-      total: parseFloat(raw.total) || 0,
-      tarifaUsada: parseFloat(raw.tarifaUsada) || 0
+      pago: parseFloat(raw.pago) || parseFloat(raw.total) || 0
+    };
+  }
+
+  function normalizeChofer(raw){
+    return {
+      id: String(raw.id),
+      nombre: raw.nombre || '',
+      dni: raw.dni || '',
+      telefono: raw.telefono || '',
+      licenciaNumero: raw.licenciaNumero || '',
+      licenciaCategoria: raw.licenciaCategoria || '',
+      licenciaVencimiento: raw.licenciaVencimiento ? String(raw.licenciaVencimiento).slice(0,10) : '',
+      pctHabitual: parseFloat(raw.pctHabitual) || 0,
+      esDueno: raw.esDueno === true || raw.esDueno === 'true' || raw.esDueno === 1 || raw.esDueno === '1'
+    };
+  }
+
+  function normalizeMant(raw){
+    return {
+      id: String(raw.id),
+      fecha: raw.fecha ? String(raw.fecha).slice(0,10) : '',
+      km: parseFloat(raw.km) || 0,
+      tipo: raw.tipo || 'Otro',
+      detalle: raw.detalle || ''
     };
   }
 
@@ -610,7 +858,9 @@
       const data = await jsonpRequest({ action: 'getData' });
       if(!data.ok) throw new Error(data.error || 'Error desconocido');
       trips = (data.trips || []).map(normalizeTrip);
-      tarifaActual = parseFloat(data.tarifa) || 0;
+      choferes = (data.choferes || []).map(normalizeChofer);
+      camion = data.camion || {};
+      mantenimientos = (data.mantenimientos || []).map(normalizeMant);
       showSyncError(false);
     }catch(e){
       console.error('No se pudo conectar con el backend', e);
@@ -643,14 +893,21 @@
   document.getElementById('retryBtn').addEventListener('click', loadData);
   document.getElementById('refreshBtn').addEventListener('click', loadData);
 
-  // ---------------- helper: total de un viaje ----------------
-  // El total se congela al crear el viaje (trip.total), usando la tarifa
-  // vigente en ese momento — así, si la tarifa cambia después, los viajes
-  // ya cargados no se recalculan solos.
-  function totalDe(trip){
-    return (typeof trip.total === 'number' && !isNaN(trip.total) && trip.total !== 0)
-      ? trip.total
-      : (parseFloat(trip.km)||0) * tarifaActual;
+  // ---------------- helper: pago y monto de chofer de un viaje ----------------
+  function pagoDe(trip){
+    return parseFloat(trip.pago) || 0;
+  }
+  // El % ya no se carga por viaje: se busca en la ficha del chofer asignado
+  // (así, si el % habitual cambia, no hay que volver a tocar los viajes viejos).
+  function montoChoferDe(trip){
+    const chofer = choferes.find(c=>c.id===trip.choferId);
+    if(!chofer || chofer.esDueno) return 0;
+    return pagoDe(trip) * ((chofer.pctHabitual||0)/100);
+  }
+  function pctDe(trip){
+    const chofer = choferes.find(c=>c.id===trip.choferId);
+    if(!chofer || chofer.esDueno) return 0;
+    return chofer.pctHabitual || 0;
   }
 
   // ---------------- tabs ----------------
@@ -669,27 +926,32 @@
   document.getElementById('tripForm').addEventListener('submit', async e=>{
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
-    const km = parseFloat(document.getElementById('f-km').value) || 0;
+    const choferId = document.getElementById('f-chofer').value;
+    const chofer = choferes.find(c=>c.id===choferId);
     const trip = {
       id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
       fecha: document.getElementById('f-fecha').value || new Date().toISOString().slice(0,10),
-      procedencia: document.getElementById('f-procedencia').value.trim(),
-      destino: document.getElementById('f-destino').value.trim(),
-      km: km,
+      procedenciaNombre: document.getElementById('f-procedencia-nombre').value.trim(),
+      procedenciaLocalidad: document.getElementById('f-procedencia-localidad').value.trim(),
+      destinoNombre: document.getElementById('f-destino-nombre').value.trim(),
+      destinoLocalidad: document.getElementById('f-destino-localidad').value.trim(),
+      km: parseFloat(document.getElementById('f-km').value) || 0,
       kgrs: document.getElementById('f-kgrs').value,
       ctg: document.getElementById('f-ctg').value.trim(),
-      pct: document.getElementById('f-pct').value || 0,
+      cliente: document.getElementById('f-cliente').value.trim(),
+      choferId: choferId,
+      choferNombre: chofer ? chofer.nombre : '',
       estado: document.getElementById('f-estado').value,
       obs: document.getElementById('f-obs').value.trim(),
-      total: km * tarifaActual,
-      tarifaUsada: tarifaActual
+      pago: parseFloat(document.getElementById('f-pago').value) || 0
     };
     btn.disabled = true; btn.textContent = 'Guardando...';
     const ok = await apiPost('addTrip', { trip });
     btn.disabled = false; btn.textContent = '+ Agregar viaje';
     if(ok){
+      const clienteVal = document.getElementById('f-cliente').value;
       e.target.reset();
-      document.getElementById('f-pct').value = 10;
+      document.getElementById('f-cliente').value = clienteVal || '';
       await loadData();
     }
   });
@@ -707,19 +969,127 @@
   window.__deleteTrip = deleteTrip;
   window.__setEstado = setEstado;
 
-  // ---------------- tariff form ----------------
-  document.getElementById('tariffForm').addEventListener('submit', async e=>{
+  // ---------------- choferes ----------------
+  document.getElementById('c-es-dueno').addEventListener('change', e=>{
+    document.getElementById('c-pct-wrap').style.display = e.target.checked ? 'none' : '';
+    if(e.target.checked) document.getElementById('c-pct').value = 0;
+  });
+
+  document.getElementById('choferForm').addEventListener('submit', async e=>{
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const value = parseFloat(document.getElementById('t-precio').value) || 0;
+    const btn = document.getElementById('choferSubmitBtn');
+    const esDueno = document.getElementById('c-es-dueno').checked;
+    const chofer = {
+      nombre: document.getElementById('c-nombre').value.trim(),
+      dni: document.getElementById('c-dni').value.trim(),
+      telefono: document.getElementById('c-telefono').value.trim(),
+      licenciaNumero: document.getElementById('c-licencia-numero').value.trim(),
+      licenciaCategoria: document.getElementById('c-licencia-categoria').value.trim(),
+      licenciaVencimiento: document.getElementById('c-licencia-vencimiento').value,
+      pctHabitual: esDueno ? 0 : (document.getElementById('c-pct').value || 0),
+      esDueno: esDueno
+    };
     btn.disabled = true; btn.textContent = 'Guardando...';
-    const ok = await apiPost('setTarifa', { value });
-    btn.disabled = false; btn.textContent = 'Guardar tarifa';
+    let ok;
+    if (editingChoferId){
+      ok = await apiPost('editChofer', { id: editingChoferId, chofer });
+    } else {
+      chofer.id = Date.now()+'-'+Math.random().toString(36).slice(2,7);
+      ok = await apiPost('addChofer', { chofer });
+    }
+    btn.disabled = false;
+    btn.textContent = editingChoferId ? 'Guardar cambios' : '+ Agregar chofer';
     if(ok){
+      cancelEditChofer();
       e.target.reset();
+      document.getElementById('c-pct').value = 10;
       await loadData();
     }
   });
+
+  function startEditChofer(id){
+    const c = choferes.find(x=>x.id===id);
+    if(!c) return;
+    editingChoferId = id;
+    document.getElementById('c-nombre').value = c.nombre;
+    document.getElementById('c-dni').value = c.dni;
+    document.getElementById('c-telefono').value = c.telefono;
+    document.getElementById('c-licencia-numero').value = c.licenciaNumero;
+    document.getElementById('c-licencia-categoria').value = c.licenciaCategoria;
+    document.getElementById('c-licencia-vencimiento').value = c.licenciaVencimiento;
+    document.getElementById('c-es-dueno').checked = c.esDueno;
+    document.getElementById('c-pct-wrap').style.display = c.esDueno ? 'none' : '';
+    document.getElementById('c-pct').value = c.pctHabitual;
+    document.getElementById('choferFormTitle').textContent = 'Editando chofer: ' + c.nombre;
+    document.getElementById('choferSubmitBtn').textContent = 'Guardar cambios';
+    document.getElementById('choferCancelWrap').style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelector('[data-tab="choferes"]').classList.add('active');
+    document.getElementById('panel-choferes').classList.add('active');
+    currentTab = 'choferes';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  function cancelEditChofer(){
+    editingChoferId = null;
+    document.getElementById('choferFormTitle').textContent = 'Agregar chofer';
+    document.getElementById('choferSubmitBtn').textContent = '+ Agregar chofer';
+    document.getElementById('choferCancelWrap').style.display = 'none';
+    document.getElementById('choferForm').reset();
+    document.getElementById('c-pct-wrap').style.display = '';
+    document.getElementById('c-pct').value = 10;
+  }
+  document.getElementById('choferCancelBtn').addEventListener('click', cancelEditChofer);
+
+  async function deleteChofer(id){
+    if(!confirm('¿Borrar este chofer? (los viajes ya cargados con su nombre no se van a modificar)')) return;
+    const ok = await apiPost('deleteChofer', { id });
+    if(ok) await loadData();
+  }
+  window.__startEditChofer = startEditChofer;
+  window.__deleteChofer = deleteChofer;
+
+  // ---------------- camión ----------------
+  document.getElementById('camionForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const datos = {
+      patente: document.getElementById('cam-patente').value.trim(),
+      marca: document.getElementById('cam-marca').value.trim(),
+      modelo: document.getElementById('cam-modelo').value.trim(),
+      anio: document.getElementById('cam-anio').value,
+      vtvUltima: document.getElementById('cam-vtv-ultima').value,
+      vtvVencimiento: document.getElementById('cam-vtv-vencimiento').value
+    };
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ok = await apiPost('setCamion', { camion: datos });
+    btn.disabled = false; btn.textContent = 'Guardar datos del camión';
+    if(ok) await loadData();
+  });
+
+  // ---------------- mantenimientos ----------------
+  document.getElementById('mantForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const mant = {
+      id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+      fecha: document.getElementById('m-fecha').value,
+      km: document.getElementById('m-km').value || 0,
+      tipo: document.getElementById('m-tipo').value,
+      detalle: document.getElementById('m-detalle').value.trim()
+    };
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ok = await apiPost('addMantenimiento', { mantenimiento: mant });
+    btn.disabled = false; btn.textContent = '+ Agregar';
+    if(ok){ e.target.reset(); await loadData(); }
+  });
+
+  async function deleteMant(id){
+    if(!confirm('¿Borrar este registro?')) return;
+    const ok = await apiPost('deleteMantenimiento', { id });
+    if(ok) await loadData();
+  }
+  window.__deleteMant = deleteMant;
 
   // ---------------- month filter ----------------
   document.getElementById('monthFilter').addEventListener('change', e=>{
@@ -745,9 +1115,59 @@
 
   // ---------------- render ----------------
   function render(){
+    renderChoferDropdown();
+    renderClientesDatalist();
+    renderAlerts();
     if(currentTab==='viajes'){ renderStats(); buildMonthFilterOptions(); renderTrips(); }
-    if(currentTab==='tarifas'){ renderTarifaActual(); }
+    if(currentTab==='choferes'){ renderChoferes(); }
+    if(currentTab==='camion'){ renderCamion(); }
     if(currentTab==='resumen'){ renderResumen(); }
+  }
+
+  function renderClientesDatalist(){
+    const clientes = [...new Set(trips.map(t=>t.cliente).filter(Boolean))].sort();
+    document.getElementById('dl-clientes').innerHTML = clientes.map(c=>`<option value="${c}">`).join('');
+  }
+
+  // Avisa 10 días antes (o si ya venció) de la licencia de cada chofer y de la VTV del camión.
+  function renderAlerts(){
+    const alerts = [];
+    choferes.forEach(c=>{
+      if(!c.licenciaVencimiento) return;
+      const dias = diasHasta(c.licenciaVencimiento);
+      if(dias===null) return;
+      if(dias < 0) alerts.push({ texto: 'La licencia de ' + c.nombre + ' está vencida.', urgente:true });
+      else if(dias <= 10) alerts.push({ texto: 'La licencia de ' + c.nombre + ' vence en ' + dias + ' día' + (dias===1?'':'s') + '.', urgente:false });
+    });
+    if(camion.vtvVencimiento){
+      const dias = diasHasta(camion.vtvVencimiento);
+      if(dias !== null){
+        if(dias < 0) alerts.push({ texto: 'La VTV del camión está vencida.', urgente:true });
+        else if(dias <= 10) alerts.push({ texto: 'La VTV del camión vence en ' + dias + ' día' + (dias===1?'':'s') + '.', urgente:false });
+      }
+    }
+
+    const box = document.getElementById('alertsBanner');
+    if(alerts.length === 0){ box.style.display = 'none'; box.innerHTML=''; return; }
+    const hayUrgente = alerts.some(a=>a.urgente);
+    const bg = hayUrgente ? 'var(--red-soft)' : 'var(--amber-soft)';
+    const fg = hayUrgente ? 'var(--red)' : 'var(--amber)';
+    box.style.display = 'block';
+    box.style.background = bg;
+    box.style.color = fg;
+    box.style.borderRadius = '12px';
+    box.style.padding = '14px 18px';
+    box.style.fontSize = '13px';
+    box.style.fontWeight = '600';
+    box.innerHTML = '⚠️ ' + alerts.map(a=>a.texto).join(' &nbsp;·&nbsp; ');
+  }
+
+  function renderChoferDropdown(){
+    const sel = document.getElementById('f-chofer');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Sin asignar</option>' +
+      choferes.map(c=>`<option value="${c.id}">${c.nombre}${c.esDueno?' (Dueño)':''}</option>`).join('');
+    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
   }
 
   function filteredTrips(){
@@ -759,11 +1179,11 @@
     const list = filteredTrips();
     let totalKg=0, totalKm=0, totalFact=0, totalChofer=0, pendiente=0;
     list.forEach(t=>{
-      const total = totalDe(t);
-      const monto = total * (parseFloat(t.pct)||0)/100;
+      const pago = pagoDe(t);
+      const monto = montoChoferDe(t);
       totalKg += parseFloat(t.kgrs)||0;
       totalKm += parseFloat(t.km)||0;
-      totalFact += total;
+      totalFact += pago;
       totalChofer += monto;
       if(t.estado==='Pendiente') pendiente += monto;
     });
@@ -796,24 +1216,25 @@
     document.getElementById('tripsTable').style.display='table';
 
     body.innerHTML = list.map(t=>{
-      const totalVal = totalDe(t);
-      const sinTarifa = !totalVal && !t.km;
-      const monto = totalVal * (parseFloat(t.pct)||0)/100;
+      const pago = pagoDe(t);
+      const monto = montoChoferDe(t);
+      const pct = pctDe(t);
       const pillClass = t.estado==='Pagado' ? 'pill-pagado' : (t.estado==='Parcial' ? 'pill-parcial' : 'pill-pendiente');
       const fechaFmt = t.fecha ? new Date(t.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
       return `<tr>
         <td>${fechaFmt}</td>
         <td class="route">
           <div class="route-line">
-            <span>${t.procedencia||'—'}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
-            <span>${t.destino||'—'}</span>
+            <span>${routeLabel(t.procedenciaNombre, t.procedenciaLocalidad)}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
+            <span>${routeLabel(t.destinoNombre, t.destinoLocalidad)}</span>
           </div>
         </td>
+        <td>${t.cliente||'—'}</td>
         <td>${t.ctg||'—'}</td>
+        <td>${t.choferNombre||'—'}${t.choferNombre && pct ? ' ('+pct+'%)' : ''}</td>
         <td class="num">${kg(t.km)}</td>
         <td class="num">${t.kgrs?kg(t.kgrs):'—'}</td>
-        <td class="num">${money(totalVal)}</td>
-        <td class="num">${t.pct||0}%</td>
+        <td class="num">${money(pago)}</td>
         <td class="num">${money(monto)}</td>
         <td>
           <select class="pill-select ${pillClass}" onchange="window.__setEstado('${t.id}', this.value)">
@@ -828,20 +1249,16 @@
     }).join('');
   }
 
-  function renderTarifaActual(){
-    document.getElementById('tarifaActualDisplay').textContent = money(tarifaActual) + ' / km';
-  }
-
   function renderResumen(){
     const list = trips.slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
     document.getElementById('resumenCountDesc').textContent = list.length + (list.length===1?' viaje en total':' viajes en total');
 
     let totalKm=0, totalFact=0, totalChofer=0, pagado=0, pendiente=0;
     list.forEach(t=>{
-      const total = totalDe(t);
-      const monto = total*(parseFloat(t.pct)||0)/100;
+      const pago = pagoDe(t);
+      const monto = montoChoferDe(t);
       totalKm += parseFloat(t.km)||0;
-      totalFact += total;
+      totalFact += pago;
       totalChofer += monto;
       if(t.estado==='Pagado') pagado += monto;
       else if(t.estado==='Pendiente') pendiente += monto;
@@ -859,24 +1276,96 @@
       </div>`).join('');
 
     document.getElementById('resumenBody').innerHTML = list.map(t=>{
-      const total = totalDe(t);
-      const monto = total*(parseFloat(t.pct)||0)/100;
+      const pago = pagoDe(t);
+      const monto = montoChoferDe(t);
       const pillClass = t.estado==='Pagado' ? 'pill-pagado' : (t.estado==='Parcial' ? 'pill-parcial' : 'pill-pendiente');
       const fechaFmt = t.fecha ? new Date(t.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
       return `<tr>
         <td>${fechaFmt}</td>
         <td class="route">
           <div class="route-line">
-            <span>${t.procedencia||'—'}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
-            <span>${t.destino||'—'}</span>
+            <span>${routeLabel(t.procedenciaNombre, t.procedenciaLocalidad)}</span><span class="path"></span><span class="dot"></span><span class="path"></span>
+            <span>${routeLabel(t.destinoNombre, t.destinoLocalidad)}</span>
           </div>
         </td>
+        <td>${t.cliente||'—'}</td>
         <td class="num">${kg(t.km)}</td>
-        <td class="num">${money(total)}</td>
+        <td class="num">${money(pago)}</td>
         <td class="num">${money(monto)}</td>
         <td><span class="pill ${pillClass}">${t.estado||'Pendiente'}</span></td>
       </tr>`;
     }).join('');
+  }
+
+  // ---------------- choferes ----------------
+  function renderChoferes(){
+    document.getElementById('choferesCountDesc').textContent = choferes.length + (choferes.length===1?' chofer':' choferes');
+    const body = document.getElementById('choferesBody');
+    if(choferes.length===0){
+      body.innerHTML = '';
+      document.getElementById('choferesEmpty').style.display = 'block';
+      return;
+    }
+    document.getElementById('choferesEmpty').style.display = 'none';
+    body.innerHTML = choferes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>{
+      const venc = estadoVencimiento(c.licenciaVencimiento);
+      return `<tr>
+        <td class="route">${c.nombre}${c.esDueno ? ' <span class="pill pill-ok" style="margin-left:4px;">Dueño</span>' : ''}</td>
+        <td>${c.dni||'—'}</td>
+        <td>${c.telefono||'—'}</td>
+        <td>${c.licenciaNumero||'—'}${c.licenciaCategoria?' ('+c.licenciaCategoria+')':''}</td>
+        <td><span class="pill ${venc.cls}">${venc.texto}</span></td>
+        <td class="num">${c.esDueno ? '—' : (c.pctHabitual||0)+'%'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="window.__startEditChofer('${c.id}')">Editar</button>
+          <button class="btn-danger-ghost" onclick="window.__deleteChofer('${c.id}')">Borrar</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---------------- camión ----------------
+  function renderCamion(){
+    document.getElementById('cam-patente').value = camion.patente || '';
+    document.getElementById('cam-marca').value = camion.marca || '';
+    document.getElementById('cam-modelo').value = camion.modelo || '';
+    document.getElementById('cam-anio').value = camion.anio || '';
+    document.getElementById('cam-vtv-ultima').value = camion.vtvUltima || '';
+    document.getElementById('cam-vtv-vencimiento').value = camion.vtvVencimiento || '';
+
+    const vtv = estadoVencimiento(camion.vtvVencimiento);
+    const stats = [
+      { label:'Patente', value: camion.patente || '—', cls:'' },
+      { label:'Marca / Modelo', value: (camion.marca||'—') + (camion.modelo?' '+camion.modelo:''), cls:'' },
+      { label:'Año', value: camion.anio || '—', cls:'' },
+      { label:'VTV', value: vtv.texto, cls: vtv.cls==='pill-vencido' ? 'amber' : '' },
+    ];
+    document.getElementById('camionStatsRow').innerHTML = stats.map(s=>`
+      <div class="stat-card">
+        <div class="label">${s.label}</div>
+        <div class="value ${s.cls}">${s.value}</div>
+      </div>`).join('');
+
+    document.getElementById('mantCountDesc').textContent = mantenimientos.length + (mantenimientos.length===1?' registro':' registros');
+    const body = document.getElementById('mantBody');
+    if(mantenimientos.length===0){
+      body.innerHTML = '';
+      document.getElementById('mantEmpty').style.display = 'block';
+      return;
+    }
+    document.getElementById('mantEmpty').style.display = 'none';
+    body.innerHTML = mantenimientos.slice()
+      .sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''))
+      .map(m=>{
+        const fechaFmt = m.fecha ? new Date(m.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—';
+        return `<tr>
+          <td>${fechaFmt}</td>
+          <td class="num">${m.km?kg(m.km):'—'}</td>
+          <td>${m.tipo}</td>
+          <td>${m.detalle||''}</td>
+          <td><button class="btn-danger-ghost" onclick="window.__deleteMant('${m.id}')">Borrar</button></td>
+        </tr>`;
+      }).join('');
   }
 
   loadData();
